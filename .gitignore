@@ -2,3 +2,5 @@
 /dist
 /node_modules
 /build
+/apps
+/apps/gmc-token/*
