@@ -2,7 +2,10 @@
 /dist
 /node_modules
 /build
+
+# Ignore all apps by default
 /apps/*
+
 # But allow only gmc-vault
 !/apps/gms-vault
-!/apps/gms-vault/**   # <-- track all files recursively
+!/apps/gms-vault/**   # track all files recursively inside gmc-vault
