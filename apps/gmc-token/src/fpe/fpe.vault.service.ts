@@ -13,8 +13,8 @@ export class VaultService {
     constructor() {
         this.client = Vault({
         apiVersion: 'v1',
-        endpoint: process.env?.VAULT_ADDR || 'http://127.0.0.1:8200',
-        token: process.env?.VAULT_TOKEN || 'hvs.kAmAefIo51JZJG6hxzRrCqLC',
+        endpoint: process.env?.VAULT_ADDR,
+        token: process.env?.VAULT_TOKEN,
         });
     }
 
