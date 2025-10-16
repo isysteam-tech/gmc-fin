@@ -2,5 +2,9 @@
 /dist
 /node_modules
 /build
-/apps
-/apps/gmc-token/*
+
+# Ignore all apps by default
+/apps/*
+
+# But allow only gmc-vault
+!/apps/gmc-token
