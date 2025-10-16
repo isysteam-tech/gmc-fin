@@ -3,3 +3,6 @@
 /node_modules
 /build
 /apps/*
+# But allow only gmc-vault
+!/apps/gms-vault
+!/apps/gms-vault/**   # <-- track all files recursively
