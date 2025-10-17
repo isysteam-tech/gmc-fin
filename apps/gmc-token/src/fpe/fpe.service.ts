@@ -10,13 +10,10 @@ export class FpeService {
   constructor(private readonly vault: VaultService) {}
 
     async onModuleInit() {
-        console.log('innnnnnn');
         
         const keys = await this.vault.getKeys();
-        console.log(keys, 'keys');
         
-
-        this.alphabetFpe = fpe({
+        this.alphabetFpe = fpe({ 
             secret: keys.alphabetKey,
             domain: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
         });
@@ -34,10 +31,6 @@ export class FpeService {
     const prefix = value.slice(0, prefixLength);
     const suffix = value.slice(value.length - suffixLength);
     const middle = value.slice(prefixLength, value.length - suffixLength);
-    console.log(prefix, 'prefix');
-    console.log(suffix, 'suffix');
-    
-    console.log(middle, '------------');
     
 
     let encrypted = '';

@@ -1,10 +1,14 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { TokenService } from './token.service';
 import { TokeniseRequestDto, DetokeniseRequestDto, MaskRequestDto } from './token.interface';
+import { VaultService } from '../fpe/fpe.vault.service';
 
 @Controller('token')
 export class TokenController {
-    constructor(private readonly tokenService: TokenService) {}
+    constructor(
+        private readonly tokenService: TokenService,
+        private readonly vault: VaultService
+    ) {}
 
     @Post('tokenise')
     async tokenise(@Body() body: TokeniseRequestDto) {
@@ -29,4 +33,10 @@ export class TokenController {
         const masked = this.tokenService.maskByRole(body.value, body.role, body.type);
         return { masked };
     }
+
+    @Post('vault/rotate-key')
+    async rotateKey() {
+        return this.vault.rotateKeys();
+    }
+
 }

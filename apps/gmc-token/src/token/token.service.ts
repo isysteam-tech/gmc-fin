@@ -12,14 +12,17 @@ export class TokenService {
 
     async tokenise(type: string, value: string, deterministic: boolean) {
         if (!value) throw new Error('No value provided');
-        console.log('Forwarding tokenise request:', value);
+        // console.log('Forwarding tokenise request:', value);
 
         if (!deterministic) {
         throw new Error('Only deterministic tokenisation supported for now');
         }
-
+       
+        
         // 🔐 Perform deterministic tokenisation using FPE
         const token = this.fpeService.encrypt(value, 4, 1);
+        // console.log(token, 'tokentokentoken');
+        
 
         return {
             token,
