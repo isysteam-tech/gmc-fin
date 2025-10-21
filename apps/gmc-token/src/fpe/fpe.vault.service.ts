@@ -11,7 +11,7 @@ export class VaultService {
         this.client = Vault({
             apiVersion: 'v1',
             endpoint: "http://127.0.0.1:8200",
-            token: "hvs.SWgR43noUj0rMhgIxFJ8hxv0",
+            token: "hvs.mlngqu1Yt8GgJviIdThK3fRZ",
         });
     }
 

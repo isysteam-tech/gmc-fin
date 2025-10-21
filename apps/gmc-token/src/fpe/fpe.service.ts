@@ -65,4 +65,19 @@ export class FpeService {
 
     return prefix + decrypted + suffix;
   }
+
+
+  mask(value: string, prefixLength: number, suffixLength: number, maskChar = '*'): string {
+    if (!value) throw new Error('No input provided');
+
+    const prefix = value.slice(0, prefixLength);
+    const suffix = value.slice(value.length - suffixLength);
+    const middleLength = value.length - (prefixLength + suffixLength);
+    console.log(middleLength, 'middleLength');
+    
+
+    const masked = maskChar.repeat(Math.max(0, middleLength));
+    return prefix + masked + suffix;
+  }
+
 }

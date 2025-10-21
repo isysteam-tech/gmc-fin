@@ -40,23 +40,55 @@ describe('TokenController - Excel PAN uniqueness (real FPE)', () => {
     await fpeService.onModuleInit();
   });
 
-  it('should tokenise all PANs from Excel and ensure uniqueness', async () => {
-    const filePath = join(__dirname, '..', '..', 'pan.xlsx');
+  // it('should tokenise all PANs from Excel and ensure uniqueness', async () => {
+  //   const filePath = join(__dirname, '..', '..', 'pan.xlsx');
+  //   const workbook = XLSX.readFile(filePath);
+  //   const sheetName = workbook.SheetNames[0];
+  //   const sheet = workbook.Sheets[sheetName];
+
+  //   const data: { pan_no: string }[] = XLSX.utils.sheet_to_json(sheet);
+
+  //   const tokenSet = new Set<string>();
+
+  //   for (const row of data) {
+  //     if (!row.pan_no) throw new Error('Empty PAN found in Excel');
+  //     // console.log(row.pan_no, 'before');
+
+  //     const reqBody: TokeniseRequestDto = {
+  //       type: 'nric',
+  //       value: row.pan_no,
+  //       deterministic: true,
+  //     };
+
+  //     const result = await controller.tokenise(reqBody);
+
+  //     tokenSet.add(result.token.token);
+  //     // console.log(result.token.token, 'after');
+  //     // break
+  //   }
+
+  //   console.log(`PAN count: ${data.length}, Unique tokens: ${tokenSet.size}`);
+
+  //   expect(tokenSet.size).toBe(data.length);
+  // });
+
+    it('should tokenise all Bank account no from Excel and ensure uniqueness', async () => {
+    const filePath = join(__dirname, '..', '..', 'bankacc.xlsx');
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
 
-    const data: { pan_no: string }[] = XLSX.utils.sheet_to_json(sheet);
+    const data: { bank: string }[] = XLSX.utils.sheet_to_json(sheet);
 
     const tokenSet = new Set<string>();
 
     for (const row of data) {
-      if (!row.pan_no) throw new Error('Empty PAN found in Excel');
-      // console.log(row.pan_no, 'before');
+      if (!row.bank) throw new Error('Empty PAN found in Excel');
+      // console.log(row.bank, 'before');
 
       const reqBody: TokeniseRequestDto = {
-        type: 'nric',
-        value: row.pan_no,
+        type: 'bank',
+        value: row.bank,
         deterministic: true,
       };
 

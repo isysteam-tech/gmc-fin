@@ -30,8 +30,8 @@ export class TokenController {
 
     @Post('mask')
     async mask(@Body() body: MaskRequestDto) {
-        const masked = this.tokenService.maskByRole(body.value, body.role, body.type);
-        return { masked };
+        const masked = this.tokenService.maskByRole(body.type, body.value, body.mask_style);
+        return masked;
     }
 
     @Post('vault/rotate-key')

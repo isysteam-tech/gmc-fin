@@ -64,9 +64,9 @@ export class MaskRequestDto implements IMaskRequest {
   @IsNotEmpty()
   value: string;
 
-  @IsOptional()
   @IsString()
-  mask_style?: 'default' | 'strict';
+  @IsNotEmpty()
+  mask_style: 'default' | 'strict';
 
   @IsOptional()
   @IsString()
