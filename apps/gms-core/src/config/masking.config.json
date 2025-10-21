@@ -1,0 +1,32 @@
+{
+  "nric": {
+    "prefix": 1,
+    "suffix": 4,
+    "fieldLength": 10,
+    "condition": "equalto"
+  },
+  "bank": {
+    "prefix": 0,
+    "suffix": 4,
+    "fieldLength": 10,
+    "condition": "equalto"
+  },
+  "email": {
+    "prefix": 2,
+    "suffix": 6,
+    "fieldLength": 50,
+    "condition": "lessthan"
+  },
+  "phone": {
+    "prefix": 2,
+    "suffix": 4,
+    "fieldLength": 10,
+    "condition": "equalto"
+  },
+  "bank_code": {
+    "prefix": 0,
+    "suffix": 0,
+    "fieldLength": 4,
+    "condition": "equalto"
+  }
+}
