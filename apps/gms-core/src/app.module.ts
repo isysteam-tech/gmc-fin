@@ -10,6 +10,7 @@ import { UsersModule } from './users/user.module';
 import { Company } from './applicants/company.entity';
 import { Project } from './applicants/project.entity';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ import { ScheduleModule } from '@nestjs/schedule';
       }),
     }),
     ApplicantsModule,
-    UsersModule
+    UsersModule,
+    AiModule
   ],
 })
 export class AppModule { }
