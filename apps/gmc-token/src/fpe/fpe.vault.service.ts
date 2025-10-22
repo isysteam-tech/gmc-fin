@@ -11,7 +11,7 @@ export class VaultService {
         this.client = Vault({
             apiVersion: 'v1',
             endpoint: "http://127.0.0.1:8200",
-            token: "hvs.mlngqu1Yt8GgJviIdThK3fRZ",
+            token: "hvs.TIIw6ufRYOSF0eYRmwQr31gw",
         });
     }
 
@@ -37,17 +37,17 @@ export class VaultService {
         const newNumericKey = Math.floor(Math.random() * 1e18).toString().slice(0, 10);
 
         const result = await this.client.write('secrets/data/fpe', {
-        data: {
-            alphabetKey: newAlphabetKey,
-            numericKey: newNumericKey,
-        },
+            data: {
+                alphabetKey: newAlphabetKey,
+                numericKey: newNumericKey,
+            },
         });
 
         return {
-        message: 'Vault keys rotated successfully',
-        version: result.data.version,
-        alphabetKey: newAlphabetKey,
-        numericKey: newNumericKey,
+            message: 'Vault keys rotated successfully',
+            version: result.data.version,
+            alphabetKey: newAlphabetKey,
+            numericKey: newNumericKey,
         };
     }
 }

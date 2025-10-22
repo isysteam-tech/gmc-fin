@@ -1,7 +1,7 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { config } from 'dotenv';
 config();
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
 
 console.log(process.env.PORT, 'process.env.PORT');
 

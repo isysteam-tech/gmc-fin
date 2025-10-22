@@ -25,7 +25,7 @@ export class TokenService {
         
 
         // 🔐 Perform deterministic tokenisation using FPE
-        const token = this.fpeService.encrypt(value, getConfig.prefix, getConfig.suffix);
+        const token = await this.fpeService.encrypt(value, getConfig.prefix, getConfig.suffix);
         // console.log(token, 'tokentokentoken');
         
 
@@ -43,10 +43,10 @@ export class TokenService {
         console.log('Forwarding detokenise request:', dto);
 
         const getConfig = maskConfig[dto.purpose]
-        // console.log(getConfig, 'getConfig');
+        console.log(getConfig, 'getConfig');
 
         // 🔄 Here we just simulate calling a detokenisation module
-        const decrypted = this.fpeService.decrypt(dto.token, getConfig.prefix, getConfig.suffix);
+        const decrypted = await this.fpeService.decrypt(dto.token, getConfig.prefix, getConfig.suffix);
 
         return {
             message: 'De-tokenisation simulated locally',

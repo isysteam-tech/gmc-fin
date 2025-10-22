@@ -1,7 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { TokenService } from './token.service';
 import { TokeniseRequestDto, DetokeniseRequestDto, MaskRequestDto } from './token.interface';
 import { VaultService } from '../fpe/fpe.vault.service';
+import { RateLimitGuard } from '../common/rate-limiter/rate-limit.guard';
 
 @Controller('token')
 export class TokenController {
@@ -11,6 +12,7 @@ export class TokenController {
     ) {}
 
     @Post('tokenise')
+    @UseGuards(RateLimitGuard)
     async tokenise(@Body() body: TokeniseRequestDto) {
         const deterministic = !!body.deterministic;
         const token = await this.tokenService.tokenise(body.type, body.value, deterministic);
