@@ -59,7 +59,7 @@ export class VaultService {
                 value: data,
                 deterministic: true
             });
-            return response.data.token;
+            return response.data.token.token;
         } catch (error) {
             console.error('Tokenization failed:', error.message);
             throw new Error(`Failed to tokenize data: ${error.message}`);
@@ -78,20 +78,27 @@ export class VaultService {
             throw new Error(`Failed to mask data: ${error.message}`);
         }
     }
-    async detokenise(keyName: string, ciphertext: string): Promise<string> {
+    async detokenise(purpose: string, token: string): Promise<string> {
         try {
-            // Use the same context that was used during tokenization
-            // const context = Buffer.from('user-specific-context').toString('base64');
-
-            // const response = await this.vaultClient.write(`transit/decrypt/${keyName}`, {
-            //     ciphertext,
-            //     context,
-            // });
-
-            // return Buffer.from(response.data.plaintext, 'base64').toString('utf8');
-            return ciphertext;
+            const response = await this.client.post('/detokenise', {
+                token, purpose
+            });
+            // console.log(response.data, 'response.data.payload.value');
+            
+            return response.data.payload.value;
         } catch (err) {
-            this.logger.error(`Failed to detokenize with key ${keyName}:`, err);
+            this.logger.error(`Failed to detokenize with key ${token}:`, err);
+            throw new InternalServerErrorException(`Failed to detokenize data.`);
+        }
+    }
+
+
+    async rotateKey(): Promise<string> {
+        try {
+            const response = await this.client.post('vault/rotate-key');
+            return response.data;
+        } catch (err) {
+            this.logger.error(`Failed to rotateKey`, err);
             throw new InternalServerErrorException(`Failed to detokenize data.`);
         }
     }
@@ -199,5 +206,14 @@ export class VaultService {
             this.logger.error('Failed to renew token:', err);
             throw err;
         }
+    }
+
+     // 1️⃣ Get current keys
+    async getKeys(): Promise<{ alphabetKey: string; numericKey: string }> {
+        const res = await this.vaultClient.read('secrets/data/fpe');
+        return {
+        alphabetKey: res.data.data.alphabetKey,
+        numericKey: res.data.data.numericKey,
+        };
     }
 }

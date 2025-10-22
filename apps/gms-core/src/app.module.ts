@@ -9,9 +9,11 @@ import { SecurityAudit } from './applicants/securityAudit.entity';
 import { UsersModule } from './users/user.module';
 import { Company } from './applicants/company.entity';
 import { Project } from './applicants/project.entity';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,        // makes ConfigService available in all modules
       envFilePath: '.env',   // explicitly points to .env

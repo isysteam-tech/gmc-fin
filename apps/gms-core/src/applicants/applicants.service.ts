@@ -7,6 +7,7 @@ import { SecurityAudit } from './securityAudit.entity';
 import { VaultService } from '../vault/vault.service';
 import { Company } from './company.entity';
 import { Project } from './project.entity';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class ApplicantsService {
@@ -167,5 +168,60 @@ export class ApplicantsService {
             phone_masked: await this.vaultService.makeMask('phone', applicant.phone),
             salary_band: applicant.salaryBand,
         };
+    }
+
+    // Cron job to run every 30 minutes
+    @Cron(CronExpression.EVERY_5_MINUTES)
+    async rotateKeysAndRetokenize() {
+        this.logger.log('Fetching current keys...');
+
+        this.logger.log('Fetching all applicants...');
+        const applicants = await this.personIdentityRepository.find();
+
+        console.log(applicants, 'applicants');
+
+        for (const applicant of applicants) {
+        try {
+
+            // console.log(applicant.nric_token, 'before...........');
+            
+            // Detokenize current values
+            const [nric_token, bank_acc_token, bank_code_token] = await Promise.all([
+                this.vaultService.detokenise('nric', applicant.nric_token),
+                this.vaultService.detokenise('bank', applicant.bank_acc_token),
+                this.vaultService.detokenise('bank_code', applicant.bank_code_token),
+            ]);
+
+            // console.log(nric_token, 'detoken.........');
+            
+
+            // Rotate keys in Vault
+            this.logger.log('Rotating keys...');
+            await this.vaultService.rotateKey()
+
+            // 6️⃣ Re-tokenize data with new keys
+            const [new_nric_token, new_bank_acc_token, new_bank_code_token] = await Promise.all([
+                this.vaultService.tokenise('nric', nric_token),
+                this.vaultService.tokenise('bank', bank_acc_token),
+                this.vaultService.tokenise('bank_code', bank_code_token),
+            ]);
+
+            // console.log(new_nric_token, 'after....................');
+            
+
+            // Update DB with new tokenized values
+            await this.personIdentityRepository.update(applicant.id, {
+                nric_token: new_nric_token,
+                bank_acc_token: new_bank_acc_token,
+                bank_code_token: new_bank_code_token,
+            });
+
+            this.logger.log(`Updated tokens for applicant ID ${applicant.id}`);
+        } catch (err) {
+            this.logger.error(`Failed to rotate tokens for applicant ID ${applicant.id}`, err);
+        }
+        }
+
+        this.logger.log('Key rotation and re-tokenization complete!');
     }
 }
