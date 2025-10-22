@@ -2,30 +2,30 @@ import { Injectable } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 
 interface TokenPayload {
-    userId: string;
     username: string;
+    role: string;
     type: 'access' | 'refresh';
 }
 
 @Injectable()
 export class TokenService {
 
-    generateAccessToken(userId: string, username: string): string {
+    generateAccessToken(username: string, role: string): string {
         const payload: TokenPayload = {
-            userId,
             username,
+            role,
             type: 'access',
         };
 
-        return jwt.sign(payload, process.env.JWT_SECRET || 'your-secret-key', {
+        return jwt.sign(payload, process.env.JWT_SECRET || '!@#$%^&*()', {
             expiresIn: '8m',
         });
     }
 
-    generateRefreshToken(userId: string, username: string): string {
+    generateRefreshToken(username: string, role: string): string {
         const payload: TokenPayload = {
-            userId,
             username,
+            role,
             type: 'refresh',
         };
 

@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, Post, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
 import { ApplicantsService } from './applicants.service';
-import { VaultTokenGuard, Roles } from '../vault/vault-token.guard';
+// import { VaultTokenGuard, Roles } from '../vault/vault-token.guard';
 import { Request } from 'express';
 import { MaskRequestDto } from '../dto/mask-request.dto';
+import { JwtAuthGuard, Roles } from 'src/users/jwt-auth.guard';
 // Extend Express Request to include Vault user info
 interface AuthRequest extends Request {
   user?: {
@@ -15,7 +16,8 @@ interface AuthRequest extends Request {
 }
 
 @Controller('applicants')
-@UseGuards(VaultTokenGuard) // Protect all routes in this controller
+@UseGuards(JwtAuthGuard)
+// @UseGuards(VaultTokenGuard) // Protect all routes in this controller
 export class ApplicantsController {
   constructor(private readonly applicantsService: ApplicantsService) { }
 

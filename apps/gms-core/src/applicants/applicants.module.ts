@@ -8,11 +8,13 @@ import { SecurityAudit } from './securityAudit.entity';
 import { VaultModule } from 'src/vault/vault.module';
 import { Project } from './project.entity';
 import { Company } from './company.entity';
+import { UsersModule } from 'src/users/user.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ApplicantProfile, PersonIdentity, SecurityAudit, Project, Company]),
     VaultModule,
+    UsersModule
   ],
   controllers: [ApplicantsController],
   providers: [ApplicantsService],
