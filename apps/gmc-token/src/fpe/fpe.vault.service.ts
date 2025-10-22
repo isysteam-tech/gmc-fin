@@ -25,7 +25,16 @@ export class VaultService {
     // Retrieve FPE keys from Vault
     async getKeys(): Promise<{ alphabetKey: string; numericKey: string }> {
         const res = await this.client.read('secrets/data/fpe');
-        
+
+        return {
+            alphabetKey: res.data.data.alphabetKey,
+            numericKey: res.data.data.numericKey,
+        };
+    }
+
+    async getOldKeys(): Promise<{ alphabetKey: string; numericKey: string }> {
+        const res = await this.client.read('secrets/data/old_fpe');
+
         return {
             alphabetKey: res.data.data.alphabetKey,
             numericKey: res.data.data.numericKey,
@@ -33,6 +42,13 @@ export class VaultService {
     }
 
     async rotateKeys() {
+        const currentKeys = await this.client.read('secrets/data/fpe');
+        if (currentKeys?.data?.data) {
+            await this.client.write('secrets/data/old_fpe', {
+                data: currentKeys.data.data, // store existing keys in old_fpe
+            });
+        }
+
         const newAlphabetKey = Math.random().toString(36).slice(2, 18);
         const newNumericKey = Math.floor(Math.random() * 1e18).toString().slice(0, 10);
 
@@ -50,4 +66,5 @@ export class VaultService {
             numericKey: newNumericKey,
         };
     }
+
 }

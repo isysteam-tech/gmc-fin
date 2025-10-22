@@ -12,6 +12,7 @@ export interface ITokeniseRequest {
 export interface IDetokeniseRequest {
   token: string;
   purpose: string;
+  key: boolean;
 }
 
 export interface IMaskRequest {
@@ -53,6 +54,10 @@ export class DetokeniseRequestDto implements IDetokeniseRequest {
   @IsString()
   @IsNotEmpty()
   purpose: string;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  key: boolean = true;
 }
 
 export class MaskRequestDto implements IMaskRequest {

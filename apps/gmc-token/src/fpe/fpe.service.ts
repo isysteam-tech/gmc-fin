@@ -24,8 +24,8 @@ export class FpeService {
       });
   }
 
-  private async initFpe() {
-    const keys = await this.vault.getKeys();
+  private async initFpe(k: boolean) {
+    const keys = (k) ? await this.vault.getKeys() : await this.vault.getOldKeys()
     return {
       alphabetFpe: fpe({ secret: keys.alphabetKey, domain: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('') }),
       numericFpe: fpe({ secret: keys.numericKey, domain: '0123456789'.split('') }),
@@ -36,7 +36,7 @@ export class FpeService {
   async encrypt(value: string, prefixLength: number, suffixLength: number): Promise<string> {
     if (!value) throw new Error('No input provided');
 
-    const { alphabetFpe, numericFpe } = await this.initFpe();
+    const { alphabetFpe, numericFpe } = await this.initFpe(true);
 
     const prefix = value.slice(0, prefixLength);
     const suffix = value.slice(value.length - suffixLength);
@@ -60,7 +60,8 @@ export class FpeService {
   }
 
   async decrypt(value: string, prefixLength: number, suffixLength: number): Promise<string> {
-    const { alphabetFpe, numericFpe } = await this.initFpe();
+    let newKey = true
+    const { alphabetFpe, numericFpe } = await this.initFpe(newKey);
     const prefix = value.slice(0, prefixLength);
     const suffix = value.slice(value.length - suffixLength);
     const middle = value.slice(prefixLength, value.length - suffixLength);
