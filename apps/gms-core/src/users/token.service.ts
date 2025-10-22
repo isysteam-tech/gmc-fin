@@ -5,16 +5,18 @@ interface TokenPayload {
     username: string;
     role: string;
     type: 'access' | 'refresh';
+    id
 }
 
 @Injectable()
 export class TokenService {
 
-    generateAccessToken(username: string, role: string): string {
+    generateAccessToken(username: string, role: string, id: string): string {
         const payload: TokenPayload = {
             username,
             role,
             type: 'access',
+            id
         };
 
         return jwt.sign(payload, process.env.JWT_SECRET || '!@#$%^&*()', {
@@ -22,11 +24,12 @@ export class TokenService {
         });
     }
 
-    generateRefreshToken(username: string, role: string): string {
+    generateRefreshToken(username: string, role: string, id: string): string {
         const payload: TokenPayload = {
             username,
             role,
             type: 'refresh',
+            id
         };
 
         return jwt.sign(payload, process.env.JWT_REFRESH_SECRET || '!@#$%^&*()1234567890', {

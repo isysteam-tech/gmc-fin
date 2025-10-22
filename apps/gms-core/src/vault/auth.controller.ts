@@ -11,7 +11,7 @@ export class AuthController {
     async setupRoles() {
         // Define policies for each role
         const rolePolicies = {
-            'role-a': `
+            'role-admin': `
                 path ${process.env.VAULT_MOUNT_PATH}/encrypt/*" {
                     capabilities = ["create", "update"]
                 }
@@ -19,7 +19,7 @@ export class AuthController {
                     capabilities = ["create", "update"]
                 }
             `,
-            'role-b': `
+            'role-finance': `
                 path ${process.env.VAULT_MOUNT_PATH}/encrypt/*" {
                     capabilities = ["create", "update"]
                 }
@@ -27,7 +27,7 @@ export class AuthController {
                     capabilities = ["create", "update"]
                 }
             `,
-            'role-c': `
+            'role-operations': `
                 path ${process.env.VAULT_MOUNT_PATH}/encrypt/*" {
                     capabilities = ["create", "update"]
                 }
@@ -35,15 +35,7 @@ export class AuthController {
                     capabilities = ["create", "update"]
                 }
             `,
-            'role-d': `
-                path ${process.env.VAULT_MOUNT_PATH}/encrypt/*" {
-                    capabilities = ["create", "update"]
-                }
-                path ${process.env.VAULT_MOUNT_PATH}/decrypt/*" {
-                    capabilities = ["create", "update"]
-                }
-            `,
-            'role-e': `
+            'role-approver': `
                 path ${process.env.VAULT_MOUNT_PATH}/encrypt/*" {
                     capabilities = ["create", "update"]
                 }

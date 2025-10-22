@@ -1,13 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, Req, UnauthorizedException, Res, BadRequestException } from '@nestjs/common';
 import { ApplicantsService } from './applicants.service';
 // import { VaultTokenGuard, Roles } from '../vault/vault-token.guard';
-import { Request } from 'express';
+import express from 'express';
 import { MaskRequestDto } from '../dto/mask-request.dto';
 import { JwtAuthGuard, Roles } from 'src/users/jwt-auth.guard';
+import { saveAsCSV } from 'src/common/exportCSV';
 // Extend Express Request to include Vault user info
-interface AuthRequest extends Request {
+interface AuthRequest extends express.Request {
   user?: {
-    userId: string;
+    id: string;
     role: string;
     tokenData: any;
   };
@@ -15,8 +16,12 @@ interface AuthRequest extends Request {
   userId?: string;
 }
 
+interface FinanceExportRequest {
+  applicant_ids: string[];
+  purpose: boolean
+}
+
 @Controller('applicants')
-// @UseGuards(JwtAuthGuard)
 // @UseGuards(VaultTokenGuard) // Protect all routes in this controller
 export class ApplicantsController {
   constructor(private readonly applicantsService: ApplicantsService) { }
@@ -24,20 +29,52 @@ export class ApplicantsController {
   // Create applicant - All authenticated roles can create
   @Post()
   async createApplicantProfile(@Body() body: MaskRequestDto, @Req() req: AuthRequest) {
-    return this.applicantsService.createApplicant(body, req.userId);
+    const userId = (req as any).user?.id || (req as any).user?.sub || null;
+    const userRole = (req as any).user?.role || 'unknown';
+    return this.applicantsService.createApplicant(body, userRole, userId);
   }
 
   @Get('key-rotate')
   async dummy(@Req() req: AuthRequest) {
     return this.applicantsService.rotateKeysAndRetokenize();
   }
-  
+
   // Get applicant by ID - All authenticated roles can view basic profile
   @Get(':id')
-  // @Roles('b', 'c', 'd', 'e')
+  @UseGuards(JwtAuthGuard)
+  @Roles('admin', 'operations', 'finance')
   async getApplicantProfile(@Param('id') id: string, @Req() req: AuthRequest) {
     return this.applicantsService.getApplicantById(id, req.userRole, req.userId);
   }
 
+  @Post('finance-export')
+  @UseGuards(JwtAuthGuard)
+  @Roles('finance')
+  async exportFinance(@Req() req: express.Request, @Res() res: express.Response, @Body() body: FinanceExportRequest) {
+    try {
+      const { applicant_ids, purpose } = body;
+      if (!applicant_ids || !Array.isArray(applicant_ids) || applicant_ids.length === 0) {
+        return res.status(400).json({
+          message: 'Validation failed',
+          missingFields: 'applicant_ids in array',
+        });
+      }
+
+      const userId = (req as any).user?.id || (req as any).user?.sub || null;
+      const userRole = (req as any).user?.role || 'unknown';
+
+      const rows = await this.applicantsService.getFinanceExports(applicant_ids, purpose, userRole, userId,);
+      const tableData = {
+        title: 'Finance Export',
+        columns: ['SI', 'ID', 'NAME', 'PHONE', 'EMAIL', 'SALARY BAND', 'COMPANY NAME', 'TITLE', 'TIMELINE', 'TOTAL COST', 'FUNDING AMOUNT', 'NRIC', 'BANK ACC', 'BANK CODE'],
+        rows,
+        fileName: purpose ? `finance_purpose_export_${Date.now()}` : `finance_export_${Date.now()}`,
+      };
+      await saveAsCSV(req, res, () => { }, tableData);
+    } catch (error) {
+      console.error('Export failed:', error);
+      res.status(500).json({ message: 'Export service unavailable.' });
+    }
+  }
 
 }

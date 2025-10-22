@@ -42,16 +42,10 @@ export class UsersService {
         const newUser = this.usersRepository.create({ username, role, password: hashedPassword });
         const savedUser = await this.usersRepository.save(newUser);
 
-        // Generate tokens
-        // const accessToken = this.tokenService.generateAccessToken(savedUser.username, role);
-        // const refreshToken = this.tokenService.generateRefreshToken(savedUser.username, role);
-
         return {
             id: savedUser.id,
             username: savedUser.username,
             role: savedUser.role,
-            // accessToken,
-            // refreshToken,
             createdAt: savedUser.createdAt,
         };
     }
@@ -66,8 +60,8 @@ export class UsersService {
             return null;
         }
         // Generate tokens
-        const accessToken = this.tokenService.generateAccessToken(user.username, user.role);
-        const refreshToken = this.tokenService.generateRefreshToken(user.username, user.role);
+        const accessToken = this.tokenService.generateAccessToken(user.username, user.role, user.id);
+        const refreshToken = this.tokenService.generateRefreshToken(user.username, user.role, user.id);
 
         return {
             id: user.id,
@@ -96,7 +90,7 @@ export class UsersService {
         if (!user) {
             throw new BadRequestException('User not found');
         }
-        const newAccessToken = this.tokenService.generateAccessToken(user.username, user.role);
+        const newAccessToken = this.tokenService.generateAccessToken(user.username, user.role, user.id);
         return { accessToken: newAccessToken };
     }
 

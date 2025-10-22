@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ApplicantProfile, SalaryBand } from './applicants.entity';
 import { PersonIdentity } from './person-identity.entity';
-// import { SecurityAudit } from './securityAudit.entity';
+import { SecurityAudit } from './securityAudit.entity';
 import { VaultService } from '../vault/vault.service';
 import { Company } from './company.entity';
 import { Project } from './project.entity';
@@ -12,32 +12,22 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 @Injectable()
 export class ApplicantsService {
     private readonly logger = new Logger(ApplicantsService.name);
-    private readonly TRANSIT_KEY_NAME = process.env.TRANSIT_KEY_NAME || 'applicant-data-key';
+    // private readonly TRANSIT_KEY_NAME = process.env.TRANSIT_KEY_NAME || 'applicant-data-key';
 
     constructor(
         @InjectRepository(ApplicantProfile)
         private applicantsRepository: Repository<ApplicantProfile>,
         @InjectRepository(PersonIdentity)
         private personIdentityRepository: Repository<PersonIdentity>,
-        // @InjectRepository(SecurityAudit)
-        // private securityAuditRepository: Repository<SecurityAudit>,
+        @InjectRepository(SecurityAudit)
+        private securityAuditRepository: Repository<SecurityAudit>,
         private readonly vaultService: VaultService,
         @InjectRepository(Company)
         private companyRepository: Repository<Company>,
         @InjectRepository(Project)
         private projectRepository: Repository<Project>,
     ) {
-        // this.initializeTransitKey();
     }
-
-    // private async initializeTransitKey() {
-    //     try {
-    //         await this.vaultService.createTransitKey(this.TRANSIT_KEY_NAME);
-    //         this.logger.log('Transit key initialized successfully');
-    //     } catch (err) {
-    //         this.logger.error('Failed to initialize transit key:', err);
-    //     }
-    // }
 
     private mapSalaryToBand(salary: number): SalaryBand {
         if (salary < 3000) return SalaryBand.A;
@@ -46,14 +36,7 @@ export class ApplicantsService {
         return SalaryBand.D;
     }
 
-
-
-    private maskNric(nric: string): string {
-        if (!nric) return '';
-        return nric.charAt(0) + '*'.repeat(nric.length - 2) + nric.charAt(nric.length - 1);
-    }
-
-    async createApplicant(data: any, userId?: string) {
+    async createApplicant(data: any, role?: string, userId?: string) {
         const { name, email, phone, salary, nric, bank_acc, bank_code, designation, company, project } = data;
 
         try {
@@ -110,15 +93,15 @@ export class ApplicantsService {
             }
 
             // Security audit log
-            // await this.securityAuditRepository.save({
-            //     actor_id: userId || 'system',
-            //     action: 'tokenise',
-            //     resource: 'applicant',
-            //     resource_id: savedApplicant.id,
-            //     purpose: 'create-applicant',
-            //     decision: 'allow',
-            //     request_ctx: { source: 'API', role: userId ? 'authenticated' : 'system' },
-            // });
+            await this.securityAuditRepository.save({
+                actor_id: userId || null,
+                action: 'tokenise',
+                resource: 'applicant',
+                resource_id: savedApplicant.id,
+                purpose: 'create-applicant',
+                decision: 'allow',
+                request_ctx: { source: 'API', role: role ? role : 'system' },
+            });
 
             this.logger.log(`Applicant ${savedApplicant.id} created by user ${userId || 'system'}`);
 
@@ -147,21 +130,21 @@ export class ApplicantsService {
             throw new NotFoundException(`Applicant with ID ${applicantId} not found`);
         }
         // Security audit log
-        // await this.securityAuditRepository.save({
-        //     actor_id: userId || 'anonymous',
-        //     action: 'read',
-        //     resource: 'applicant',
-        //     resource_id: applicantId,
-        //     purpose: 'view-profile',
-        //     decision: 'allow',
-        //     request_ctx: { role: userRole || 'unknown', source: 'API' },
-        // });
+        await this.securityAuditRepository.save({
+            actor_id: userId || null,
+            action: 'read',
+            resource: 'applicant',
+            resource_id: applicantId,
+            purpose: 'view-profile',
+            decision: 'allow',
+            request_ctx: { role: userRole || 'unknown', source: 'API' },
+        });
         this.logger.log(`User ${userId} (role: ${userRole}) viewed applicant ${applicantId}`);
 
         return {
             id: applicant.id,
             name: applicant.name,
-            email: applicant.email,
+            email: applicant.email ? await this.vaultService.makeMask('email', applicant.email) : null,
             phone: applicant.phone ? await this.vaultService.makeMask('phone', applicant.phone) : null,
             salaryBand: applicant.salaryBand,
             designation: applicant.designation,
@@ -169,9 +152,9 @@ export class ApplicantsService {
             identity: applicant.identity
                 ? {
                     id: applicant.identity.id,
-                    nric_token: applicant.identity.nric_token,
-                    bank_acc_token: applicant.identity.bank_acc_token,
-                    bank_code_token: applicant.identity.bank_code_token,
+                    nric_token: applicant.identity.nric_token ? await this.vaultService.makeMask('nric', applicant.identity.nric_token) : null,
+                    bank_acc_token: applicant.identity.bank_acc_token ? await this.vaultService.makeMask('bank', applicant.identity.bank_acc_token) : null,
+                    bank_code_token: applicant.identity.bank_code_token ? await this.vaultService.makeMask('bank_code', applicant.identity.bank_code_token) : null,
                     createdAt: applicant.identity.createdAt,
                 }
                 : null,
@@ -198,6 +181,165 @@ export class ApplicantsService {
                 }
                 : null,
         };
+    }
+
+    async getFinanceExports(applicantIds: string[], purpose: boolean, userRole?: string, userId?: string,): Promise<any> {
+        const startTime = Date.now();
+        const exportContext = {
+            applicantCount: applicantIds.length,
+            purpose: 'finance-export-csv',
+            detokenizationPerformed: purpose,
+        };
+
+        try {
+            // Validate input
+            if (!applicantIds || applicantIds.length === 0) {
+                throw new BadRequestException('Applicant IDs are required');
+            }
+
+            // Fetch all records
+            const getDatas = await this.applicantsRepository
+                .createQueryBuilder('applicant')
+                .leftJoin('applicant.identity', 'identity')
+                .leftJoin('applicant.company', 'company')
+                .leftJoin('applicant.project', 'project')
+                .select([
+                    'applicant.id AS id',
+                    'applicant.name AS name',
+                    'applicant.phone AS phone',
+                    'applicant.email AS email',
+                    'applicant.salaryBand AS salaryband',
+                    'identity.nric_token AS nric_token',
+                    'identity.bank_acc_token AS bank_acc_token',
+                    'identity.bank_code_token AS bank_code_token',
+                    'company.companyName AS companyname',
+                    'project.title AS title',
+                    'project.timeline AS timeline',
+                    'project.totalCost AS totalcost',
+                    'project.fundingAmount AS fundingamount',
+                ])
+                .where('applicant.id IN (:...ids)', { ids: applicantIds })
+                .getRawMany();
+
+            if (getDatas.length === 0) {
+                throw new NotFoundException(`No applicants found for provided IDs`);
+            }
+            let rows: any = [];
+            let detokenizationAttempts = 0;
+            let detokenizationSuccesses = 0;
+            if (purpose) {
+                rows = await Promise.all(
+                    getDatas.map(async (identity, index) => {
+                        try {
+                            detokenizationAttempts++;
+                            const [nric, bankAcc, bankCode] = await Promise.all([
+                                this.vaultService.detokenise('nric', identity.nric_token),
+                                this.vaultService.detokenise('bank', identity.bank_acc_token),
+                                this.vaultService.detokenise('bank_code', identity.bank_code_token),
+                            ]);
+                            detokenizationSuccesses++;
+
+                            return {
+                                SI: index + 1,
+                                ID: identity.id,
+                                NAME: identity.name,
+                                PHONE: identity.phone,
+                                EMAIL: identity.email,
+                                'SALARY BAND': identity.salaryband,
+                                'COMPANY NAME': identity.companyname,
+                                TITLE: identity.title,
+                                TIMELINE: identity.timeline,
+                                ' TOTAL COST': identity.totalcost,
+                                'FUNDING AMOUNT': identity.fundingamount,
+                                NRIC: nric,
+                                'BANK ACC': bankAcc,
+                                'BANK CODE': bankCode,
+                            };
+                        } catch (error) {
+                            this.logger.error(`Detokenization failed for applicant ${identity.applicant.id}:`, error);
+                            throw error;
+                        }
+                    }),
+                );
+            } else {
+                rows = await Promise.all(
+                    getDatas.map((identity, index) => {
+                        return {
+                            SI: index + 1,
+                            ID: identity.id,
+                            NAME: identity.name,
+                            PHONE: identity.phone,
+                            EMAIL: identity.email,
+                            'SALARY BAND': identity.salaryband,
+                            'COMPANY NAME': identity.companyname,
+                            TITLE: identity.title,
+                            TIMELINE: identity.timeline,
+                            'TOTAL COST': identity.totalcost,
+                            'FUNDING AMOUNT': identity.fundingamount,
+                            NRIC: identity.nric_token,
+                            'BANK ACC': identity.bank_acc_token,
+                            'BANK CODE': identity.bank_code_token,
+                        }
+                    }),
+                );
+            }
+            // Log successful audit trail
+            await this.securityAuditRepository.save({
+                actor_id: userId || null,
+                action: 'export',
+                resource: 'applicant_financial_data',
+                resource_id: applicantIds.join(','),
+                purpose: 'finance-export-csv',
+                decision: 'allow',
+                request_ctx: {
+                    role: userRole || 'unknown',
+                    source: 'API',
+                    exportContext,
+                },
+                metadata: {
+                    recordsExported: rows.length,
+                    detokenizationAttempts,
+                    detokenizationSuccesses,
+                    executionTimeMs: Date.now() - startTime,
+                },
+            });
+
+            this.logger.log(
+                `User ${userId} (role: ${userRole}) exported financial data for ${applicantIds.length} applicants. ` +
+                `Purpose: finance-export-csv. Detokenization: ${detokenizationSuccesses}/${detokenizationAttempts}`,
+            );
+
+            return rows;
+        } catch (error) {
+            // Log failed audit trail
+            await this.securityAuditRepository.save({
+                actor_id: userId || null,
+                action: 'export',
+                resource: 'applicant_financial_data',
+                resource_id: applicantIds.join(','),
+                purpose: 'finance-export-csv',
+                decision: 'deny',
+                request_ctx: {
+                    role: userRole || 'unknown',
+                    source: 'API',
+                    exportContext,
+                },
+                metadata: {
+                    error: error.message,
+                    errorCode: error.constructor.name,
+                    executionTimeMs: Date.now() - startTime,
+                },
+            }).catch((auditError) => {
+                this.logger.error('Failed to log security audit for failed export:', auditError);
+            });
+
+            this.logger.error(
+                `User ${userId} (role: ${userRole}) attempted to export financial data but failed. Purpose: ${purpose}. Error: ${error.message}`,
+                error.stack,
+            );
+
+            throw error;
+        }
     }
 
     // Cron job to run every 30 minutes
