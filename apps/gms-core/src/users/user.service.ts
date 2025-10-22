@@ -9,9 +9,17 @@ interface CreateUserResponse {
     id: string;
     username: string;
     role: string;
+    // accessToken: string;
+    // refreshToken: string;
+    createdAt: Date;
+}
+
+interface LoginResponse {
+    id: string;
+    username: string;
+    role: string;
     accessToken: string;
     refreshToken: string;
-    createdAt: Date;
 }
 
 @Injectable()
@@ -35,16 +43,38 @@ export class UsersService {
         const savedUser = await this.usersRepository.save(newUser);
 
         // Generate tokens
-        const accessToken = this.tokenService.generateAccessToken(savedUser.id, savedUser.username);
-        const refreshToken = this.tokenService.generateRefreshToken(savedUser.id, savedUser.username);
+        // const accessToken = this.tokenService.generateAccessToken(savedUser.username, role);
+        // const refreshToken = this.tokenService.generateRefreshToken(savedUser.username, role);
 
         return {
             id: savedUser.id,
             username: savedUser.username,
             role: savedUser.role,
+            // accessToken,
+            // refreshToken,
+            createdAt: savedUser.createdAt,
+        };
+    }
+
+    async validateAndLogin(username: string, password: string): Promise<LoginResponse | null> {
+        const user = await this.usersRepository.findOneBy({ username });
+        if (!user) {
+            return null;
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return null;
+        }
+        // Generate tokens
+        const accessToken = this.tokenService.generateAccessToken(user.username, user.role);
+        const refreshToken = this.tokenService.generateRefreshToken(user.username, user.role);
+
+        return {
+            id: user.id,
+            username: user.username,
+            role: user.role,
             accessToken,
             refreshToken,
-            createdAt: savedUser.createdAt,
         };
     }
 
@@ -58,13 +88,13 @@ export class UsersService {
 
     async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
         const decoded = this.tokenService.verifyRefreshToken(refreshToken);
-        const user = await this.usersRepository.findOneBy({ id: decoded.userId });
+        const user = await this.usersRepository.findOneBy({ username: decoded.username });
 
         if (!user) {
             throw new BadRequestException('User not found');
         }
 
-        const newAccessToken = this.tokenService.generateAccessToken(user.id, user.username);
+        const newAccessToken = this.tokenService.generateAccessToken(user.username, user.role);
 
         return {
             accessToken: newAccessToken,
