@@ -78,10 +78,10 @@ export class VaultService {
             throw new Error(`Failed to mask data: ${error.message}`);
         }
     }
-    async detokenise(purpose: string, token: string): Promise<string> {
+    async detokenise(purpose: string, token: string, key: boolean): Promise<string> {
         try {
             const response = await this.client.post('/detokenise', {
-                token, purpose
+                token, purpose, key
             });
             // console.log(response.data, 'response.data.payload.value');
             

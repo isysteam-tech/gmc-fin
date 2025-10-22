@@ -8,6 +8,7 @@ import { VaultService } from '../vault/vault.service';
 import { Company } from './company.entity';
 import { Project } from './project.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { KeyRotationBatch } from './key_rotation_batches.entity';
 
 @Injectable()
 export class ApplicantsService {
@@ -26,6 +27,8 @@ export class ApplicantsService {
         private companyRepository: Repository<Company>,
         @InjectRepository(Project)
         private projectRepository: Repository<Project>,
+        @InjectRepository(KeyRotationBatch)
+        private readonly batchRepository: Repository<KeyRotationBatch>,
     ) {
     }
 
@@ -233,9 +236,9 @@ export class ApplicantsService {
                         try {
                             detokenizationAttempts++;
                             const [nric, bankAcc, bankCode] = await Promise.all([
-                                this.vaultService.detokenise('nric', identity.nric_token),
-                                this.vaultService.detokenise('bank', identity.bank_acc_token),
-                                this.vaultService.detokenise('bank_code', identity.bank_code_token),
+                                this.vaultService.detokenise('nric', identity.nric_token, true),
+                                this.vaultService.detokenise('bank', identity.bank_acc_token, true),
+                                this.vaultService.detokenise('bank_code', identity.bank_code_token, true),
                             ]);
                             detokenizationSuccesses++;
 
@@ -342,58 +345,147 @@ export class ApplicantsService {
         }
     }
 
-    // Cron job to run every 30 minutes
-    @Cron(CronExpression.EVERY_12_HOURS)
+    @Cron(CronExpression.EVERY_5_HOURS)
     async rotateKeysAndRetokenize() {
-        this.logger.log('Fetching current keys...');
+        const BATCH_SIZE = Number(process.env.BATCH_SIZE) || 0;
+        console.log(BATCH_SIZE, 'BATCH_SIZE');
 
-        this.logger.log('Fetching all applicants...');
-        const applicants = await this.personIdentityRepository.find();
+        this.logger.log('Starting global key rotation...');
 
-        console.log(applicants, 'applicants');
+        // const oldKeys = await this.vaultService.getKeys();
+        await this.vaultService.rotateKey();
+        //  const newKeys = await this.vaultService.getKeys();
 
-        for (const applicant of applicants) {
+        let skip = 0;
+        let batchNumber = 1;
+
+        while (true) {
+            const applicants = await this.personIdentityRepository.find({
+                skip,
+                take: BATCH_SIZE,
+            });
+
+            if (!applicants.length) break;
+
+            const batchLog = this.batchRepository.create({
+                batchNumber,
+                totalUsers: applicants.length,
+                status: 'pending',
+            });
+            await this.batchRepository.save(batchLog);
+
             try {
+                const decryptedData = await Promise.all(
+                    applicants.map(async (applicant) => {
+                        const [nric, bankAcc, bankCode] = await Promise.all([
+                            this.vaultService.detokenise('nric', applicant.nric_token, false),
+                            this.vaultService.detokenise('bank', applicant.bank_acc_token, false),
+                            this.vaultService.detokenise('bank_code', applicant.bank_code_token, false),
+                        ]);
+                        return { id: applicant.id, nric, bankAcc, bankCode };
+                    })
+                );
 
-                // console.log(applicant.nric_token, 'before...........');
+                // Retokenise using NEW keys
+                for (const data of decryptedData) {
+                    const [newNric, newBankAcc, newBankCode] = await Promise.all([
+                        this.vaultService.tokenise('nric', data.nric),
+                        this.vaultService.tokenise('bank', data.bankAcc),
+                        this.vaultService.tokenise('bank_code', data.bankCode),
+                    ]);
 
-                // Detokenize current values
-                const [nric_token, bank_acc_token, bank_code_token] = await Promise.all([
-                    this.vaultService.detokenise('nric', applicant.nric_token),
-                    this.vaultService.detokenise('bank', applicant.bank_acc_token),
-                    this.vaultService.detokenise('bank_code', applicant.bank_code_token),
-                ]);
+                    await this.personIdentityRepository.update(data.id, {
+                        nric_token: newNric,
+                        bank_acc_token: newBankAcc,
+                        bank_code_token: newBankCode,
+                    });
+                }
 
-                // console.log(nric_token, 'detoken.........');
-
-
-                // Rotate keys in Vault
-                this.logger.log('Rotating keys...');
-                await this.vaultService.rotateKey()
-
-                // 6️⃣ Re-tokenize data with new keys
-                const [new_nric_token, new_bank_acc_token, new_bank_code_token] = await Promise.all([
-                    this.vaultService.tokenise('nric', nric_token),
-                    this.vaultService.tokenise('bank', bank_acc_token),
-                    this.vaultService.tokenise('bank_code', bank_code_token),
-                ]);
-
-                // console.log(new_nric_token, 'after....................');
-
-
-                // Update DB with new tokenized values
-                await this.personIdentityRepository.update(applicant.id, {
-                    nric_token: new_nric_token,
-                    bank_acc_token: new_bank_acc_token,
-                    bank_code_token: new_bank_code_token,
-                });
-
-                this.logger.log(`Updated tokens for applicant ID ${applicant.id}`);
+                batchLog.status = 'success';
+                await this.batchRepository.save(batchLog);
+                this.logger.log(`Batch ${batchNumber} completed successfully.`);
             } catch (err) {
-                this.logger.error(`Failed to rotate tokens for applicant ID ${applicant.id}`, err);
+                batchLog.status = 'failed';
+                batchLog.errorMessage = err.message;
+                await this.batchRepository.save(batchLog);
+                this.logger.error(`Batch ${batchNumber} failed: ${err.message}`);
+            }
+
+            skip += BATCH_SIZE;
+            batchNumber++;
+        }
+
+        this.logger.log('Key rotation job complete.');
+    }
+
+
+    @Cron(CronExpression.EVERY_HOUR) // Retry failed batches every hour
+    async retryFailedBatches() {
+        this.logger.log('Checking for failed batches to retry...');
+
+        const failedBatches = await this.batchRepository.find({ where: { status: 'failed' } });
+
+        for (const batch of failedBatches) {
+            this.logger.log(`Retrying failed batch ${batch.batchNumber}`);
+            try {
+                await this.rotateKeysAndRetokenizeBatch(batch.batchNumber);
+                this.logger.log(`Batch ${batch.batchNumber} retried successfully`);
+            } catch (err) {
+                this.logger.error(`Batch ${batch.batchNumber} retry failed: ${err.message}`);
             }
         }
 
-        this.logger.log('Key rotation and re-tokenization complete!');
+        this.logger.log('Failed batches retry job complete.');
     }
+
+    /**
+  * Rotate and retokenize a specific batch by batchNumber
+  */
+    private async rotateKeysAndRetokenizeBatch(batchNumber: number): Promise<void> {
+        const batchLog = await this.batchRepository.findOneBy({ batchNumber });
+        if (!batchLog) return;
+
+        const skip = (batchNumber - 1) * Number(process.env.BATCH_SIZE || 100);
+        const applicants = await this.personIdentityRepository.find({
+            skip,
+            take: batchLog.totalUsers,
+        });
+
+        try {
+            const decryptedData = await Promise.all(
+                applicants.map(async (applicant) => {
+                    const [nric, bankAcc, bankCode] = await Promise.all([
+                        this.vaultService.detokenise('nric', applicant.nric_token, false),
+                        this.vaultService.detokenise('bank', applicant.bank_acc_token, false),
+                        this.vaultService.detokenise('bank_code', applicant.bank_code_token, false),
+                    ]);
+                    return { id: applicant.id, nric, bankAcc, bankCode };
+                }),
+            );
+
+            for (const data of decryptedData) {
+                const [newNric, newBankAcc, newBankCode] = await Promise.all([
+                    this.vaultService.tokenise('nric', data.nric),
+                    this.vaultService.tokenise('bank', data.bankAcc),
+                    this.vaultService.tokenise('bank_code', data.bankCode),
+                ]);
+
+                await this.personIdentityRepository.update(data.id, {
+                    nric_token: newNric,
+                    bank_acc_token: newBankAcc,
+                    bank_code_token: newBankCode,
+                });
+            }
+
+            batchLog.status = 'success';
+            await this.batchRepository.save(batchLog);
+            this.logger.log(`Batch ${batchNumber} retried successfully.`);
+        } catch (err) {
+            batchLog.status = 'failed';
+            batchLog.errorMessage = err.message;
+            await this.batchRepository.save(batchLog);
+            this.logger.error(`Retry for batch ${batchNumber} failed: ${err.message}`);
+        }
+    }
+
 }
