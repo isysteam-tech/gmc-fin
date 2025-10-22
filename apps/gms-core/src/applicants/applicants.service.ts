@@ -140,12 +140,12 @@ export class ApplicantsService {
     async getApplicantById(applicantId: string, userRole?: string, userId?: string): Promise<any> {
         const applicant = await this.applicantsRepository.findOne({
             where: { id: applicantId },
+            relations: ['identity', 'company', 'project'],
         });
 
         if (!applicant) {
             throw new NotFoundException(`Applicant with ID ${applicantId} not found`);
         }
-
         // Security audit log
         // await this.securityAuditRepository.save({
         //     actor_id: userId || 'anonymous',
@@ -156,21 +156,52 @@ export class ApplicantsService {
         //     decision: 'allow',
         //     request_ctx: { role: userRole || 'unknown', source: 'API' },
         // });
-
         this.logger.log(`User ${userId} (role: ${userRole}) viewed applicant ${applicantId}`);
 
-        // Return basic info only (no sensitive data)
         return {
             id: applicant.id,
             name: applicant.name,
             email: applicant.email,
-            phone_masked: await this.vaultService.makeMask('phone', applicant.phone),
-            salary_band: applicant.salaryBand,
+            phone: applicant.phone ? await this.vaultService.makeMask('phone', applicant.phone) : null,
+            salaryBand: applicant.salaryBand,
+            designation: applicant.designation,
+            createdAt: applicant.createdAt,
+            identity: applicant.identity
+                ? {
+                    id: applicant.identity.id,
+                    nric_token: applicant.identity.nric_token,
+                    bank_acc_token: applicant.identity.bank_acc_token,
+                    bank_code_token: applicant.identity.bank_code_token,
+                    createdAt: applicant.identity.createdAt,
+                }
+                : null,
+            company: applicant.company
+                ? {
+                    id: applicant.company.id,
+                    companyName: applicant.company.companyName,
+                    uen: applicant.company.uen,
+                    regAddress: applicant.company.regAddress,
+                    businessSector: applicant.company.businessSector,
+                    employeeCount: applicant.company.employeeCount,
+                    createdAt: applicant.company.createdAt,
+                }
+                : null,
+            project: applicant.project
+                ? {
+                    id: applicant.project.id,
+                    title: applicant.project.title,
+                    desc: applicant.project.desc,
+                    timeline: applicant.project.timeline,
+                    totalCost: applicant.project.totalCost,
+                    fundingAmount: applicant.project.fundingAmount,
+                    createdAt: applicant.project.createdAt,
+                }
+                : null,
         };
     }
 
     // Cron job to run every 30 minutes
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_12_HOURS)
     async rotateKeysAndRetokenize() {
         this.logger.log('Fetching current keys...');
 
@@ -180,45 +211,45 @@ export class ApplicantsService {
         console.log(applicants, 'applicants');
 
         for (const applicant of applicants) {
-        try {
+            try {
 
-            // console.log(applicant.nric_token, 'before...........');
-            
-            // Detokenize current values
-            const [nric_token, bank_acc_token, bank_code_token] = await Promise.all([
-                this.vaultService.detokenise('nric', applicant.nric_token),
-                this.vaultService.detokenise('bank', applicant.bank_acc_token),
-                this.vaultService.detokenise('bank_code', applicant.bank_code_token),
-            ]);
+                // console.log(applicant.nric_token, 'before...........');
 
-            // console.log(nric_token, 'detoken.........');
-            
+                // Detokenize current values
+                const [nric_token, bank_acc_token, bank_code_token] = await Promise.all([
+                    this.vaultService.detokenise('nric', applicant.nric_token),
+                    this.vaultService.detokenise('bank', applicant.bank_acc_token),
+                    this.vaultService.detokenise('bank_code', applicant.bank_code_token),
+                ]);
 
-            // Rotate keys in Vault
-            this.logger.log('Rotating keys...');
-            await this.vaultService.rotateKey()
+                // console.log(nric_token, 'detoken.........');
 
-            // 6️⃣ Re-tokenize data with new keys
-            const [new_nric_token, new_bank_acc_token, new_bank_code_token] = await Promise.all([
-                this.vaultService.tokenise('nric', nric_token),
-                this.vaultService.tokenise('bank', bank_acc_token),
-                this.vaultService.tokenise('bank_code', bank_code_token),
-            ]);
 
-            // console.log(new_nric_token, 'after....................');
-            
+                // Rotate keys in Vault
+                this.logger.log('Rotating keys...');
+                await this.vaultService.rotateKey()
 
-            // Update DB with new tokenized values
-            await this.personIdentityRepository.update(applicant.id, {
-                nric_token: new_nric_token,
-                bank_acc_token: new_bank_acc_token,
-                bank_code_token: new_bank_code_token,
-            });
+                // 6️⃣ Re-tokenize data with new keys
+                const [new_nric_token, new_bank_acc_token, new_bank_code_token] = await Promise.all([
+                    this.vaultService.tokenise('nric', nric_token),
+                    this.vaultService.tokenise('bank', bank_acc_token),
+                    this.vaultService.tokenise('bank_code', bank_code_token),
+                ]);
 
-            this.logger.log(`Updated tokens for applicant ID ${applicant.id}`);
-        } catch (err) {
-            this.logger.error(`Failed to rotate tokens for applicant ID ${applicant.id}`, err);
-        }
+                // console.log(new_nric_token, 'after....................');
+
+
+                // Update DB with new tokenized values
+                await this.personIdentityRepository.update(applicant.id, {
+                    nric_token: new_nric_token,
+                    bank_acc_token: new_bank_acc_token,
+                    bank_code_token: new_bank_code_token,
+                });
+
+                this.logger.log(`Updated tokens for applicant ID ${applicant.id}`);
+            } catch (err) {
+                this.logger.error(`Failed to rotate tokens for applicant ID ${applicant.id}`, err);
+            }
         }
 
         this.logger.log('Key rotation and re-tokenization complete!');
