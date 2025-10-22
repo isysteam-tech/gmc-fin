@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApplicantProfile, SalaryBand } from './applicants.entity';
 import { PersonIdentity } from './person-identity.entity';
-import { SecurityAudit } from './securityAudit.entity';
+// import { SecurityAudit } from './securityAudit.entity';
 import { VaultService } from '../vault/vault.service';
 import { Company } from './company.entity';
 import { Project } from './project.entity';
@@ -26,17 +26,17 @@ export class ApplicantsService {
         @InjectRepository(Project)
         private projectRepository: Repository<Project>,
     ) {
-        this.initializeTransitKey();
+        // this.initializeTransitKey();
     }
 
-    private async initializeTransitKey() {
-        try {
-            await this.vaultService.createTransitKey(this.TRANSIT_KEY_NAME);
-            this.logger.log('Transit key initialized successfully');
-        } catch (err) {
-            this.logger.error('Failed to initialize transit key:', err);
-        }
-    }
+    // private async initializeTransitKey() {
+    //     try {
+    //         await this.vaultService.createTransitKey(this.TRANSIT_KEY_NAME);
+    //         this.logger.log('Transit key initialized successfully');
+    //     } catch (err) {
+    //         this.logger.error('Failed to initialize transit key:', err);
+    //     }
+    // }
 
     private mapSalaryToBand(salary: number): SalaryBand {
         if (salary < 3000) return SalaryBand.A;
@@ -84,7 +84,6 @@ export class ApplicantsService {
 
             });
             await this.personIdentityRepository.save(identity);
-            console.log(company, 'wwwwwwwwwwwwwwwwww', project)
             if (company) {
                 const companyEntity = this.companyRepository.create({
                     companyName: company.company_name,
@@ -127,7 +126,7 @@ export class ApplicantsService {
                 id: savedApplicant.id,
                 name,
                 email,
-                phone_masked: phone,
+                phone_masked: await this.vaultService.makeMask('phone', phone),
                 salary_band: salaryBand,
                 message: 'Applicant created successfully',
             };

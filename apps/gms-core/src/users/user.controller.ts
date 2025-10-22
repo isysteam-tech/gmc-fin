@@ -1,7 +1,6 @@
 import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus, BadRequestException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from './user.service';
 import { ApiKeyGuard } from './api-key.guard';
-import { JwtAuthGuard } from './jwt-auth.guard';
 
 interface CreateUserDto {
     username: string;

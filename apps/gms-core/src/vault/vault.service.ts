@@ -19,38 +19,38 @@ export class VaultService {
         });
     }
 
-    async createTransitKey(keyName: string): Promise<void> {
-        try {
-            await this.vaultClient.write(`transit/keys/${keyName}`, {
-                type: 'aes256-gcm96',
-                derived: true,
-                convergent_encryption: false,
-            });
-            this.logger.log(`Transit key "${keyName}" created successfully.`);
-        } catch (err: any) {
-            if (err.response?.data?.errors?.includes('key already exists')) {
-                this.logger.warn(`Transit key "${keyName}" already exists, skipping creation.`);
-            } else {
-                this.logger.error(`Failed to create transit key "${keyName}":`, err);
-                throw new InternalServerErrorException(`Failed to create transit key "${keyName}".`);
-            }
-        }
-    }
+    // async createTransitKey(keyName: string): Promise<void> {
+    //     try {
+    //         await this.vaultClient.write(`transit/keys/${keyName}`, {
+    //             type: 'aes256-gcm96',
+    //             derived: true,
+    //             convergent_encryption: false,
+    //         });
+    //         this.logger.log(`Transit key "${keyName}" created successfully.`);
+    //     } catch (err: any) {
+    //         if (err.response?.data?.errors?.includes('key already exists')) {
+    //             this.logger.warn(`Transit key "${keyName}" already exists, skipping creation.`);
+    //         } else {
+    //             this.logger.error(`Failed to create transit key "${keyName}":`, err);
+    //             throw new InternalServerErrorException(`Failed to create transit key "${keyName}".`);
+    //         }
+    //     }
+    // }
 
-    async tokeniseOld(keyName: string, value: string): Promise<string> {
-        try {
-            // const context = Buffer.from('user-specific-context').toString('base64');
-            // const response = await this.vaultClient.write(`transit/encrypt/${keyName}`, {
-            //     plaintext: Buffer.from(value).toString('base64'),
-            //     context,
-            // });
-            // return response.data.ciphertext;
-            return value;
-        } catch (err) {
-            this.logger.error(`Failed to tokenize with key ${keyName}:`, err);
-            throw new InternalServerErrorException(`Failed to tokenize data.`);
-        }
-    }
+    // async tokeniseOld(keyName: string, value: string): Promise<string> {
+    //     try {
+    //         // const context = Buffer.from('user-specific-context').toString('base64');
+    //         // const response = await this.vaultClient.write(`transit/encrypt/${keyName}`, {
+    //         //     plaintext: Buffer.from(value).toString('base64'),
+    //         //     context,
+    //         // });
+    //         // return response.data.ciphertext;
+    //         return value;
+    //     } catch (err) {
+    //         this.logger.error(`Failed to tokenize with key ${keyName}:`, err);
+    //         throw new InternalServerErrorException(`Failed to tokenize data.`);
+    //     }
+    // }
 
     async tokenise(keyName: string, data: string): Promise<string> {
         try {

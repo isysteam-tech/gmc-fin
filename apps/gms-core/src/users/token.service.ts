@@ -34,11 +34,22 @@ export class TokenService {
         });
     }
 
-    verifyAccessToken(token: string): TokenPayload {
-        return jwt.verify(token, process.env.JWT_SECRET || '!@#$%^&*()') as TokenPayload;
+    verifyAccessToken(token: string): TokenPayload | null {
+        try {
+            return jwt.verify(token, process.env.JWT_SECRET || '!@#$%^&*()') as TokenPayload;
+        } catch (error) {
+            console.error('Invalid or expired token:', error.message);
+            return null;
+        }
     }
 
-    verifyRefreshToken(token: string): TokenPayload {
-        return jwt.verify(token, process.env.JWT_REFRESH_SECRET || '!@#$%^&*()1234567890') as TokenPayload;
+
+    verifyRefreshToken(token: string): TokenPayload | null {
+        try {
+            return jwt.verify(token, process.env.JWT_REFRESH_SECRET || '!@#$%^&*()1234567890') as TokenPayload;
+        } catch (error) {
+            console.error('Invalid or expired token:', error.message);
+            return null;
+        }
     }
 }

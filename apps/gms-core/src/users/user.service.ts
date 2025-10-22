@@ -87,17 +87,17 @@ export class UsersService {
     }
 
     async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
-        const decoded = this.tokenService.verifyRefreshToken(refreshToken);
-        const user = await this.usersRepository.findOneBy({ username: decoded.username });
 
+        const decoded = this.tokenService.verifyRefreshToken(refreshToken);
+        if (!decoded) {
+            throw new BadRequestException('Invalid or expired refresh token');
+        }
+        const user = await this.usersRepository.findOneBy({ username: decoded.username });
         if (!user) {
             throw new BadRequestException('User not found');
         }
-
         const newAccessToken = this.tokenService.generateAccessToken(user.username, user.role);
-
-        return {
-            accessToken: newAccessToken,
-        };
+        return { accessToken: newAccessToken };
     }
+
 }
