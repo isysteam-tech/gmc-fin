@@ -12,6 +12,7 @@ import { Project } from './applicants/project.entity';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AiModule } from './ai/ai.module';
 import { KeyRotationBatch } from './applicants/key_rotation_batches.entity';
+import { PdfModule } from './pdf/pdf.module';
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { KeyRotationBatch } from './applicants/key_rotation_batches.entity';
     }),
     ApplicantsModule,
     UsersModule,
-    AiModule
+    AiModule,
+    PdfModule
   ],
 })
 export class AppModule { }

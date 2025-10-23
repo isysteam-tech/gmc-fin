@@ -1,14 +1,15 @@
-import { Controller, Post, Body, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, UseInterceptors, UploadedFiles, Req, Res } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { RateLimitGuard } from '../common/rate-limiter/rate-limit.guard';
 import type { ApplicantData, SupportedModels } from './types';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 @Controller('ai')
 export class AiController {
     constructor(private readonly aiService: AiService) { }
 
     @Get('ping')
-        ping() {
+    ping() {
         return { message: 'AI module is active' };
     }
 
@@ -45,5 +46,12 @@ export class AiController {
         return {
             answer: await this.aiService.askApplicant(applicant, question, model),
         };
+    }
+
+    @Post()
+    @UseInterceptors(FilesInterceptor('files'))
+    async uploadFiles(@UploadedFiles() files: Express.Multer.File[], @Req() req: Request, @Res() res: Response) {
+
+
     }
 }
