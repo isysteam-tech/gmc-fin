@@ -80,6 +80,8 @@ export class VaultService {
     }
     async detokenise(purpose: string, token: string, key: boolean): Promise<string> {
         try {
+            // console.log(token, 'token');
+            
             const response = await this.client.post('/detokenise', {
                 token, purpose, key
             });
