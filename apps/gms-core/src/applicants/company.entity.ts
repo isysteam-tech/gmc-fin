@@ -24,6 +24,9 @@ export class Company {
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 
+    @Column({ name: 'applicant_id', type: 'uuid', nullable: true })
+    applicantId: string;
+
     @OneToOne(() => ApplicantProfile, (applicant) => applicant.identity, {
         onDelete: 'CASCADE',
     })

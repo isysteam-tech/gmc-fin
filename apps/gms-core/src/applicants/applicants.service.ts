@@ -8,6 +8,7 @@ import { VaultService } from '../vault/vault.service';
 import { Company } from './company.entity';
 import { Project } from './project.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import * as XLSX from 'xlsx'
 
 @Injectable()
 export class ApplicantsService {
@@ -183,6 +184,40 @@ export class ApplicantsService {
         };
     }
 
+    async getIdentityList(limit: number, skip: number, userRole: string, userId: string) {
+        try {
+            const [data, totalCount] = await this.personIdentityRepository.findAndCount({
+                order: { createdAt: 'DESC' },
+                skip,
+                take: limit,
+            });
+            // Security audit log
+            await this.securityAuditRepository.save({
+                actor_id: userId || null,
+                action: 'read',
+                resource: 'identity',
+                resource_id: null, // Not specific to a single identity
+                purpose: 'list-view',
+                decision: 'allow',
+                request_ctx: { role: userRole || 'unknown', source: 'API' },
+            });
+
+            this.logger.log(`User ${userId} (role: ${userRole}) viewed identity list`);
+
+            return {
+                totalCount,
+                limit,
+                skip,
+                data,
+            };
+        } catch (error) {
+            this.logger.log('Error fetching identity list:', error);
+            throw new Error('Failed to fetch identity list');
+        }
+    }
+
+
+
     async getFinanceExports(applicantIds: string[], purpose: boolean, userRole?: string, userId?: string,): Promise<any> {
         const startTime = Date.now();
         const exportContext = {
@@ -340,6 +375,14 @@ export class ApplicantsService {
 
             throw error;
         }
+    }
+
+    async parseExcel(buffer: Buffer): Promise<any[]> {
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        return jsonData;
     }
 
     // Cron job to run every 30 minutes
