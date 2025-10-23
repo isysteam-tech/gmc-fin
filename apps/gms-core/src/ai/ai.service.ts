@@ -12,7 +12,7 @@ export class AiService {
   private openai = new OpenAI({ apiKey: this.OPENAI_API_KEY });
 
   async askApplicant(
-    applicantData: ApplicantData,
+    applicantData: any,
     question: string,
     model: SupportedModels = "chatgpt"
   ): Promise<string> {
