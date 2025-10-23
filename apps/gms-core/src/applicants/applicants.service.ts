@@ -8,6 +8,7 @@ import { VaultService } from '../vault/vault.service';
 import { Company } from './company.entity';
 import { Project } from './project.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import * as XLSX from 'xlsx'
 import { KeyRotationBatch } from './key_rotation_batches.entity';
 import moment from 'moment-timezone';
 
@@ -136,7 +137,7 @@ export class ApplicantsService {
         // Security audit log
         await this.securityAuditRepository.save({
             actor_id: userId || null,
-            action: 'read',
+            action: 'read-view',
             resource: 'applicant',
             resource_id: applicantId,
             purpose: 'view-profile',
@@ -186,6 +187,61 @@ export class ApplicantsService {
                 : null,
         };
     }
+
+    async getApplicantList(limit: number, skip: number, userRole: string, userId: string) {
+        try {
+            const query = this.applicantsRepository
+                .createQueryBuilder('applicant')
+                .leftJoin('applicant.identity', 'identity')
+                .select([
+                    'applicant.id',
+                    'applicant.salaryBand',
+                    'applicant.createdAt',
+                    'identity.nric_token',
+                    'identity.bank_acc_token',
+                    'identity.bank_code_token',
+                ])
+                .orderBy('applicant.createdAt', 'DESC')
+                .skip(skip)
+                .take(limit);
+
+            const [data, totalCount] = await query.getManyAndCount();
+
+            // Security audit log
+            await this.securityAuditRepository.save({
+                actor_id: userId || null,
+                action: 'read',
+                resource: 'applicants',
+                resource_id: null,
+                purpose: 'list-view',
+                decision: 'allow',
+                request_ctx: { role: userRole || 'unknown', source: 'API' },
+            });
+
+            this.logger.log(`User ${userId} (role: ${userRole}) viewed identity list`);
+
+            return {
+                totalCount,
+                limit,
+                skip,
+                data,
+            };
+        } catch (error) {
+            this.logger.log('Error fetching identity list:', error);
+            throw new Error('Failed to fetch identity list');
+        }
+    }
+
+    async getAuditlogList(limit: number, skip: number) {
+        const [data, totalCount] = await this.securityAuditRepository.findAndCount({
+            order: { created_at: 'DESC' },
+            take: limit,
+            skip: skip,
+        });
+
+        return { data, totalCount, skip, limit };
+    }
+
 
     async getFinanceExports(applicantIds: string[], purpose: boolean, userRole?: string, userId?: string,): Promise<any> {
         const startTime = Date.now();
@@ -291,7 +347,7 @@ export class ApplicantsService {
             await this.securityAuditRepository.save({
                 actor_id: userId || null,
                 action: 'export',
-                resource: 'applicant_financial_data',
+                resource: 'applicant',
                 resource_id: applicantIds.join(','),
                 purpose: 'finance-export-csv',
                 decision: 'allow',
@@ -319,7 +375,7 @@ export class ApplicantsService {
             await this.securityAuditRepository.save({
                 actor_id: userId || null,
                 action: 'export',
-                resource: 'applicant_financial_data',
+                resource: 'applicant',
                 resource_id: applicantIds.join(','),
                 purpose: 'finance-export-csv',
                 decision: 'deny',
@@ -346,7 +402,18 @@ export class ApplicantsService {
         }
     }
 
-    @Cron('0 22 * * 5') 
+    async parseExcel(buffer: Buffer): Promise<any[]> {
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        return jsonData;
+    }
+
+    // Cron job to run every 30 minutes
+    @Cron(CronExpression.EVERY_12_HOURS)
+    @Cron(CronExpression.EVERY_5_HOURS)
+    @Cron('0 22 * * 5')
     async rotateKeysAndRetokenize() {
 
         // Alternate Friday at 10 PM
@@ -368,7 +435,7 @@ export class ApplicantsService {
 
         while (true) {
             // console.log(skip, BATCH_SIZE, 'BATCH_SIZE-----');
-            
+
             const applicants = await this.personIdentityRepository.find({
                 skip,
                 take: BATCH_SIZE,
@@ -376,7 +443,7 @@ export class ApplicantsService {
             });
 
             // console.log(applicants, 'applicants---------------');
-            
+
 
             if (!applicants.length) break;
 
@@ -400,7 +467,7 @@ export class ApplicantsService {
                 );
 
                 // console.log(decryptedData, 'decryptedData');
-                
+
 
                 // Retokenise using NEW keys
                 for (const data of decryptedData) {
@@ -411,7 +478,7 @@ export class ApplicantsService {
                     ]);
 
                     // console.log(newNric, 'newNric------------');
-                    
+
 
                     await this.personIdentityRepository.update(data.id, {
                         nric_token: newNric,

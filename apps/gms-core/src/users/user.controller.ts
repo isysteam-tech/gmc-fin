@@ -26,7 +26,7 @@ export class UsersController {
     @HttpCode(HttpStatus.CREATED)
     async createUser(@Body() body: CreateUserDto): Promise<any> {
         try {
-            const { username, role, password } = body;
+            let { username, role, password } = body;
 
             if (!username || !role || !password) {
                 throw new BadRequestException({
@@ -35,7 +35,12 @@ export class UsersController {
                 });
 
             }
-
+            role = role.toLowerCase();
+            if (!['admin', 'operations', 'finance'].includes(role)) {
+                throw new BadRequestException({
+                    message: 'Role must be ("admin", "operations", "finance")',
+                });
+            }
             return this.usersService.createUser(username, role, password);
         } catch (error) {
             if (error instanceof BadRequestException) {

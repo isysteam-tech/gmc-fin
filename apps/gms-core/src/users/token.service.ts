@@ -11,7 +11,7 @@ interface TokenPayload {
 @Injectable()
 export class TokenService {
 
-    generateAccessToken(username: string, role: string, id: string): string {
+    generateAccessToken(username: string, role: string, id: string, expiresIn: string): string {
         const payload: TokenPayload = {
             username,
             role,
@@ -20,7 +20,7 @@ export class TokenService {
         };
 
         return jwt.sign(payload, process.env.JWT_SECRET || '!@#$%^&*()', {
-            expiresIn: '8m',
+            expiresIn: (expiresIn === '8m') ? '8m' : '8h',
         });
     }
 
