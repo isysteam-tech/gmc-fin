@@ -190,11 +190,23 @@ export class ApplicantsService {
 
     async getIdentityList(limit: number, skip: number, userRole: string, userId: string) {
         try {
-            const [data, totalCount] = await this.personIdentityRepository.findAndCount({
-                order: { createdAt: 'DESC' },
-                skip,
-                take: limit,
-            });
+            const query = this.applicantsRepository
+                .createQueryBuilder('applicant')
+                .leftJoin('applicant.identity', 'identity')
+                .select([
+                    'applicant.id',
+                    'applicant.salaryBand',
+                    'applicant.createdAt',
+                    'identity.nric_token',
+                    'identity.bank_acc_token',
+                    'identity.bank_code_token',
+                ])
+                .orderBy('applicant.createdAt', 'DESC')
+                .skip(skip)
+                .take(limit);
+
+            const [data, totalCount] = await query.getManyAndCount();
+
             // Security audit log
             await this.securityAuditRepository.save({
                 actor_id: userId || null,
