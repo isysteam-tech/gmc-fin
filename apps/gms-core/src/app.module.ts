@@ -11,6 +11,7 @@ import { Company } from './applicants/company.entity';
 import { Project } from './applicants/project.entity';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AiModule } from './ai/ai.module';
+import { KeyRotationBatch } from './applicants/key_rotation_batches.entity';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { AiModule } from './ai/ai.module';
         username: config.get<string>('POSTGRES_USER'),
         password: config.get<string>('POSTGRES_PASSWORD'),
         database: config.get<string>('POSTGRES_DB'),
-        entities: [User, ApplicantProfile, PersonIdentity, SecurityAudit, Company, Project],
+        entities: [User, ApplicantProfile, PersonIdentity, SecurityAudit, Company, Project, KeyRotationBatch],
         synchronize: true,   // dev only
       }),
     }),
