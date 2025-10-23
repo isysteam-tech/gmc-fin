@@ -10,6 +10,7 @@ import { Project } from './project.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as XLSX from 'xlsx'
 import { KeyRotationBatch } from './key_rotation_batches.entity';
+import moment from 'moment-timezone';
 
 @Injectable()
 export class ApplicantsService {
@@ -391,9 +392,16 @@ export class ApplicantsService {
     // Cron job to run every 30 minutes
     @Cron(CronExpression.EVERY_12_HOURS)
     @Cron(CronExpression.EVERY_5_HOURS)
+    @Cron('0 22 * * 5')
     async rotateKeysAndRetokenize() {
+
+        // Alternate Friday at 10 PM
+        const tz = process.env.TIMEZONE || ''
+        const currentWeek = moment().tz(tz).week(); // get current week number
+        if (currentWeek % 2 !== 0) return
+
         const BATCH_SIZE = Number(process.env.BATCH_SIZE) || 0;
-        console.log(BATCH_SIZE, 'BATCH_SIZE');
+        // console.log(BATCH_SIZE, 'BATCH_SIZE');
 
         this.logger.log('Starting global key rotation...');
 
@@ -405,10 +413,16 @@ export class ApplicantsService {
         let batchNumber = 1;
 
         while (true) {
+            // console.log(skip, BATCH_SIZE, 'BATCH_SIZE-----');
+
             const applicants = await this.personIdentityRepository.find({
                 skip,
                 take: BATCH_SIZE,
+                order: { createdAt: 'ASC' },
             });
+
+            // console.log(applicants, 'applicants---------------');
+
 
             if (!applicants.length) break;
 
@@ -431,6 +445,9 @@ export class ApplicantsService {
                     })
                 );
 
+                // console.log(decryptedData, 'decryptedData');
+
+
                 // Retokenise using NEW keys
                 for (const data of decryptedData) {
                     const [newNric, newBankAcc, newBankCode] = await Promise.all([
@@ -438,6 +455,9 @@ export class ApplicantsService {
                         this.vaultService.tokenise('bank', data.bankAcc),
                         this.vaultService.tokenise('bank_code', data.bankCode),
                     ]);
+
+                    // console.log(newNric, 'newNric------------');
+
 
                     await this.personIdentityRepository.update(data.id, {
                         nric_token: newNric,
@@ -494,6 +514,7 @@ export class ApplicantsService {
         const applicants = await this.personIdentityRepository.find({
             skip,
             take: batchLog.totalUsers,
+            order: { createdAt: 'ASC' },
         });
 
         try {
