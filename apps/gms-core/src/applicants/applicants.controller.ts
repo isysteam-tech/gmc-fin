@@ -68,7 +68,7 @@ export class ApplicantsController {
   @UseGuards(JwtAuthGuard)
   @Roles('finance')
   @UseInterceptors(FileInterceptor('file'))
-  async exportFinance(@Req() req: express.Request, @Res() res: express.Response, @UploadedFile() file: Express.Multer.File, @Body() body: { purpose: boolean }) {
+  async exportFinance(@Req() req: express.Request, @Res() res: express.Response, @UploadedFile() file: Express.Multer.File, @Query('purpose') purpose: boolean) {
     try {
       if (!file) {
         return res.status(400).json({ message: 'Excel file missing' });
@@ -82,7 +82,6 @@ export class ApplicantsController {
       if (!applicant_ids.length) {
         return res.status(400).json({ message: 'No applicant IDs found in file' });
       }
-      const { purpose } = body;
       if (!applicant_ids || !Array.isArray(applicant_ids) || applicant_ids.length === 0) {
         return res.status(400).json({
           message: 'Validation failed',
