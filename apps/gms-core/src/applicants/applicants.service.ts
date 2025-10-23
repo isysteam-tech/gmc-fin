@@ -137,7 +137,7 @@ export class ApplicantsService {
         // Security audit log
         await this.securityAuditRepository.save({
             actor_id: userId || null,
-            action: 'read',
+            action: 'read-view',
             resource: 'applicant',
             resource_id: applicantId,
             purpose: 'view-profile',
@@ -188,7 +188,7 @@ export class ApplicantsService {
         };
     }
 
-    async getIdentityList(limit: number, skip: number, userRole: string, userId: string) {
+    async getApplicantList(limit: number, skip: number, userRole: string, userId: string) {
         try {
             const query = this.applicantsRepository
                 .createQueryBuilder('applicant')
@@ -211,8 +211,8 @@ export class ApplicantsService {
             await this.securityAuditRepository.save({
                 actor_id: userId || null,
                 action: 'read',
-                resource: 'identity',
-                resource_id: null, // Not specific to a single identity
+                resource: 'applicants',
+                resource_id: null,
                 purpose: 'list-view',
                 decision: 'allow',
                 request_ctx: { role: userRole || 'unknown', source: 'API' },
@@ -232,6 +232,15 @@ export class ApplicantsService {
         }
     }
 
+    async getAuditlogList(limit: number, skip: number) {
+        const [data, totalCount] = await this.securityAuditRepository.findAndCount({
+            order: { created_at: 'DESC' },
+            take: limit,
+            skip: skip,
+        });
+
+        return { data, totalCount, skip, limit };
+    }
 
 
     async getFinanceExports(applicantIds: string[], purpose: boolean, userRole?: string, userId?: string,): Promise<any> {
@@ -338,7 +347,7 @@ export class ApplicantsService {
             await this.securityAuditRepository.save({
                 actor_id: userId || null,
                 action: 'export',
-                resource: 'applicant_financial_data',
+                resource: 'applicant',
                 resource_id: applicantIds.join(','),
                 purpose: 'finance-export-csv',
                 decision: 'allow',
@@ -366,7 +375,7 @@ export class ApplicantsService {
             await this.securityAuditRepository.save({
                 actor_id: userId || null,
                 action: 'export',
-                resource: 'applicant_financial_data',
+                resource: 'applicant',
                 resource_id: applicantIds.join(','),
                 purpose: 'finance-export-csv',
                 decision: 'deny',

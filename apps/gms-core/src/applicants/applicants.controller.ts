@@ -36,6 +36,19 @@ export class ApplicantsController {
     return this.applicantsService.rotateKeysAndRetokenize();
   }
 
+  @Get('audit-log')
+  @UseGuards(JwtAuthGuard)
+  async getAuditLogList(@Query('limit') limit = 10, @Query('skip') skip = 0, @Req() req: AuthRequest,) {
+    try {
+      const parsedLimit = Number(limit) || 10;
+      const parsedSkip = Number(skip) || 0;
+      return await this.applicantsService.getAuditlogList(parsedLimit, parsedSkip);
+    } catch (error) {
+      console.error('Error fetching audit log list:', error);
+      throw new InternalServerErrorException('Failed to fetch audit log list');
+    }
+  }
+
   // Get applicant by ID - All authenticated roles can view basic profile
   @Get(':id')
   @UseGuards(JwtAuthGuard)
@@ -57,7 +70,7 @@ export class ApplicantsController {
       const userId = (req as any).user?.id || (req as any).user?.sub || null;
       const userRole = (req as any).user?.role || 'unknown';
 
-      return await this.applicantsService.getIdentityList(parsedLimit, parsedSkip, userRole, userId);
+      return await this.applicantsService.getApplicantList(parsedLimit, parsedSkip, userRole, userId);
     } catch (error) {
       console.error('Error fetching applicant list:', error);
       throw new InternalServerErrorException('Failed to fetch applicant list');
