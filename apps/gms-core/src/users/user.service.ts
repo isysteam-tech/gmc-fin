@@ -60,7 +60,7 @@ export class UsersService {
             return null;
         }
         // Generate tokens
-        const accessToken = this.tokenService.generateAccessToken(user.username, user.role, user.id);
+        const accessToken = this.tokenService.generateAccessToken(user.username, user.role, user.id, '8m');
         const refreshToken = this.tokenService.generateRefreshToken(user.username, user.role, user.id);
 
         return {
@@ -90,7 +90,7 @@ export class UsersService {
         if (!user) {
             throw new BadRequestException('User not found');
         }
-        const newAccessToken = this.tokenService.generateAccessToken(user.username, user.role, user.id);
+        const newAccessToken = this.tokenService.generateAccessToken(user.username, user.role, user.id, '8h');
         return { accessToken: newAccessToken };
     }
 
