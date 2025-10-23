@@ -65,7 +65,7 @@ export class AiService {
   async uploadFile(file: Express.Multer.File) {
     try {
       const form = new FormData();
-      form.append('purpose', 'answers'); // or 'fine-tune'
+      form.append('purpose', 'fine-tune');
       form.append('file', file.buffer, { filename: file.originalname });
 
       const response = await axios.post('https://api.openai.com/v1/files', form, {
