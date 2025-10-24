@@ -11,6 +11,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { PdfService } from './pdf.service';
+import Tesseract from 'tesseract.js';
 
 @Controller('pdf')
 export class PdfController {
@@ -21,6 +22,17 @@ export class PdfController {
     async uploadPdf(@UploadedFile() file: Express.Multer.File) {
         const text = await this.pdfService.extractText(file.buffer);
         return { text }; // JSON response
+    }
+
+    @Post('upload/ext')
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadPdfExtract(@UploadedFile() file: Express.Multer.File) {
+        if (!file) {
+            return { error: 'No file uploaded' };
+        }
+
+        const result = await this.pdfService.extractPdf(file.buffer);
+        return result;
     }
 
 }

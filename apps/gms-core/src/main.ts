@@ -14,6 +14,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.enableCors({
+    origin: '*',  // <-- allows any origin
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: '*',
+  });
   await app.listen(process.env.PORT ?? 3000);
   console.log(`GMS Core API running on http://localhost:${process.env.PORT}/gms-core/`);
 }

@@ -13,6 +13,10 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AiModule } from './ai/ai.module';
 import { KeyRotationBatch } from './applicants/key_rotation_batches.entity';
 import { PdfModule } from './pdf/pdf.module';
+import { DocumentsModule } from './documents/document.module';
+import { DocumentsController } from './documents/documents.controller';
+import { DocumentsService } from './documents/documents.service';
+import { MinioService } from './storage/minio/minio.service';
 
 @Module({
   imports: [
@@ -32,13 +36,17 @@ import { PdfModule } from './pdf/pdf.module';
         password: config.get<string>('POSTGRES_PASSWORD'),
         database: config.get<string>('POSTGRES_DB'),
         entities: [User, ApplicantProfile, PersonIdentity, SecurityAudit, Company, Project, KeyRotationBatch],
+        autoLoadEntities: true,
         synchronize: true,   // dev only
       }),
     }),
     ApplicantsModule,
     UsersModule,
     AiModule,
-    PdfModule
+    PdfModule,
+    DocumentsModule
   ],
+  controllers: [DocumentsController],
+  providers: [DocumentsService, MinioService],
 })
 export class AppModule { }
