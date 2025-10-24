@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { LocalStorageService } from 'src/ai/local-storage.service';
 import Tesseract from 'tesseract.js';
+import { ApiDataType } from './dto/api-data.type';
 
 export interface CitationData {
     pageNumber: number;
@@ -90,7 +91,8 @@ export class PdfService {
             throw new Error('PDF extraction failed');
         }
 
-        return this.mapToSchema(text);
+        // return this.mapToSchema(text);
+        return this.mapToSchemaMultiple(text);
     }
 
     // Map extracted text to structured JSON
@@ -126,5 +128,46 @@ export class PdfService {
 
         return { applicant, company, project };
     }
+
+    private mapToSchemaMultiple(text: string): ApiDataType[] {
+        const applicantBlocks = text.split(/Applicant Details\s*-+/i).slice(1);
+        const results: ApiDataType[] = [];
+
+        for (const block of applicantBlocks) {
+            const applicant = {
+                name: block.match(/Name:\s*(.*)/i)?.[1] || null,
+                email: block.match(/Email:\s*(.*)/i)?.[1] || null,
+                phone: block.match(/Phone:\s*(.*)/i)?.[1] || null,
+                salary: block.match(/Salary:\s*(.*)/i)?.[1] || null,
+                nric: block.match(/NRIC\/FIN:\s*(.*)/i)?.[1] || null,
+                designation: block.match(/Designation:\s*(.*)/i)?.[1] || null,
+                bank: {
+                    accountNo: block.match(/Bank Account:\s*(.*)/i)?.[1] || null,
+                    branchCode: block.match(/Bank Branch Code:\s*(.*)/i)?.[1] || null,
+                },
+            };
+
+            const company = {
+                name: block.match(/Company Name:\s*(.*)/i)?.[1] || null,
+                uen: block.match(/UEN:\s*(.*)/i)?.[1] || null,
+                regAddress: block.match(/Registered Address:\s*(.*)/i)?.[1] || null,
+                businessSector: block.match(/Business Sector:\s*(.*)/i)?.[1] || null,
+                employeeCount: block.match(/Employee Count:\s*(.*)/i)?.[1] || null,
+            };
+
+            const project = {
+                title: block.match(/Project Title:\s*(.*)/i)?.[1] || null,
+                description: block.match(/Project Description:\s*([\s\S]*?)\nProject Timeline:/i)?.[1]?.trim() || null,
+                timeline: block.match(/Project Timeline:\s*(.*)/i)?.[1] || null,
+                totalCost: block.match(/Total Project Cost:\s*(.*)/i)?.[1] || null,
+                fundingAmount: block.match(/Requested Funding Amount:\s*(.*)/i)?.[1] || null,
+            };
+
+            results.push({ applicant, company, project });
+        }
+
+        return results;
+    }
+
 
 }

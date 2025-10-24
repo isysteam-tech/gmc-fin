@@ -42,7 +42,7 @@ export class PdfController {
         }
 
         const result = await this.pdfService.extractPdf(file.buffer);
-        return result;
+        return { status: 200, data: result };
     }
 
 }
