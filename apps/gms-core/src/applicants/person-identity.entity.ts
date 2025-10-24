@@ -24,6 +24,10 @@ export class PersonIdentity {
     @OneToOne(() => ApplicantProfile, (applicant) => applicant.identity, {
         onDelete: 'CASCADE',
     })
+
     @JoinColumn({ name: 'applicant_id' })
     applicant: ApplicantProfile;
+
+    @Column({ default: 'pending' })
+    rotation_status: 'pending' | 'success' | 'failed';
 }

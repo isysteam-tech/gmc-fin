@@ -575,4 +575,59 @@ export class ApplicantsService {
         }
     }
 
+
+    async getApplicantByIdForAi(applicantId: string): Promise<any> {
+        console.log('innn');
+        
+        const applicant = await this.applicantsRepository.findOne({
+            where: { id: applicantId },
+            relations: ['identity', 'company', 'project'],
+        });
+
+        if (!applicant) {
+            return {}
+        }
+
+        return {
+            id: applicant.id,
+            name: applicant.name,
+            email: applicant.email ? await this.vaultService.makeMask('email', applicant.email) : null,
+            phone: applicant.phone ? await this.vaultService.makeMask('phone', applicant.phone) : null,
+            salaryBand: applicant.salaryBand,
+            designation: applicant.designation,
+            createdAt: applicant.createdAt,
+            identity: applicant.identity
+                ? {
+                    id: applicant.identity.id,
+                    nric_token: applicant.identity.nric_token ? await this.vaultService.makeMask('nric', applicant.identity.nric_token) : null,
+                    bank_acc_token: applicant.identity.bank_acc_token ? await this.vaultService.makeMask('bank', applicant.identity.bank_acc_token) : null,
+                    bank_code_token: applicant.identity.bank_code_token ? await this.vaultService.makeMask('bank_code', applicant.identity.bank_code_token) : null,
+                    createdAt: applicant.identity.createdAt,
+                }
+                : null,
+            company: applicant.company
+                ? {
+                    id: applicant.company.id,
+                    companyName: applicant.company.companyName,
+                    uen: applicant.company.uen,
+                    regAddress: applicant.company.regAddress,
+                    businessSector: applicant.company.businessSector,
+                    employeeCount: applicant.company.employeeCount,
+                    createdAt: applicant.company.createdAt,
+                }
+                : null,
+            project: applicant.project
+                ? {
+                    id: applicant.project.id,
+                    title: applicant.project.title,
+                    desc: applicant.project.desc,
+                    timeline: applicant.project.timeline,
+                    totalCost: applicant.project.totalCost,
+                    fundingAmount: applicant.project.fundingAmount,
+                    createdAt: applicant.project.createdAt,
+                }
+                : null,
+        };
+    }
+
 }

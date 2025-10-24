@@ -12,6 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { PdfService } from './pdf.service';
+import Tesseract from 'tesseract.js';
 
 @Controller('pdf')
 export class PdfController {
@@ -31,6 +32,17 @@ export class PdfController {
 
         const citations = await this.pdfService.extractWithSentenceCitations(file.buffer);
         return { citations, totalSentences: citations.length };
+    }
+
+    @Post('upload/ext')
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadPdfExtract(@UploadedFile() file: Express.Multer.File) {
+        if (!file) {
+            return { error: 'No file uploaded' };
+        }
+
+        const result = await this.pdfService.extractPdf(file.buffer);
+        return result;
     }
 
 }
