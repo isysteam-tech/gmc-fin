@@ -195,6 +195,7 @@ export class ApplicantsService {
                 .leftJoin('applicant.identity', 'identity')
                 .select([
                     'applicant.id',
+                    'applicant.name',
                     'applicant.salaryBand',
                     'applicant.createdAt',
                     'identity.nric_token',
@@ -206,6 +207,23 @@ export class ApplicantsService {
                 .take(limit);
 
             const [data, totalCount] = await query.getManyAndCount();
+            if (userRole != 'finance') {
+                for (const i of data) {
+                    if (i.identity) {
+                        i.identity.bank_acc_token = await this.vaultService.makeMask('bank', i.identity.bank_acc_token);
+                        i.identity.bank_code_token = await this.vaultService.makeMask('bank_code', i.identity.bank_code_token);
+                        i.identity.nric_token = await this.vaultService.makeMask('nric', i.identity.nric_token);
+                    }
+                }
+            } else {
+                for (const i of data) {
+                    if (i.identity) {
+                        i.identity.bank_acc_token = await this.vaultService.detokenise('bank', i.identity.bank_acc_token, true);
+                        i.identity.bank_code_token = await this.vaultService.detokenise('bank_code', i.identity.bank_code_token, true);
+                        i.identity.nric_token = await this.vaultService.detokenise('nric', i.identity.nric_token, true);
+                    }
+                }
+            }
 
             // Security audit log
             await this.securityAuditRepository.save({
@@ -578,7 +596,7 @@ export class ApplicantsService {
 
     async getApplicantByIdForAi(applicantId: string): Promise<any> {
         console.log('innn');
-        
+
         const applicant = await this.applicantsRepository.findOne({
             where: { id: applicantId },
             relations: ['identity', 'company', 'project'],

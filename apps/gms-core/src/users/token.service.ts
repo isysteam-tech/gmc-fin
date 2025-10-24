@@ -20,7 +20,7 @@ export class TokenService {
         };
 
         return jwt.sign(payload, process.env.JWT_SECRET || '!@#$%^&*()', {
-            expiresIn: (expiresIn === '8m') ? '8m' : '8h',
+            expiresIn: (expiresIn === '8m') ? '8h' : '8h',
         });
     }
 
