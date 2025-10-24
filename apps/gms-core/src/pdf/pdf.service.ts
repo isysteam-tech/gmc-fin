@@ -59,7 +59,7 @@ export class PdfService {
             });
 
             // Store in localStorage
-            this.localStorage.setItem('citationData', JSON.stringify(citationData));
+            this.localStorage.setItem('text', JSON.stringify(citationData));
 
             return citationData;
         } catch (err) {

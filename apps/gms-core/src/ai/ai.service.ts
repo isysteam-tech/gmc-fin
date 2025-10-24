@@ -28,17 +28,32 @@ export class AiService {
   }
 
   private async askChatGpt(applicantData: ApplicantData, question: string) {
-    const prompt = `
-        You are a helpful assistant. Use only the data provided to answer the user's question.
-        If the information is missing, respond exactly with: "I don't know."
+    // const prompt = `
+    //     You are a helpful assistant. Use only the data provided to answer the user's question.
+    //     If the information is missing, respond exactly with: "I don't know."
 
-        Applicant Data:
-        ${JSON.stringify(applicantData, null, 2)}
+    //     Applicant Data:
+    //     ${JSON.stringify(applicantData, null, 2)}
 
-        User Question: ${question}
+    //     User Question: ${question}
 
-        Answer:
-        `;
+    //     Answer:
+    //     `;
+
+
+const prompt = `
+You are a helpful assistant. Use only the data provided to answer the user's question.
+Each part of your answer must include the source citation in the following format: (Page X, Citation: DOC_INDEX-Y-SENTENCE-Z)
+If the information is missing, respond exactly with: "I don't know."
+
+Applicant Data:
+${JSON.stringify(applicantData, null, 2)}
+
+User Question: ${question}
+
+Answer:
+`;
+
 
     try {
       const response = await this.openai.chat.completions.create({
