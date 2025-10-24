@@ -25,6 +25,8 @@ export class ApplicantsController {
 
   // Create applicant - All authenticated roles can create
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @Roles('admin', 'operations', 'finance')
   async createApplicantProfile(@Body() body: MaskRequestDto, @Req() req: AuthRequest) {
     const userId = (req as any).user?.id || (req as any).user?.sub || null;
     const userRole = (req as any).user?.role || 'unknown';
