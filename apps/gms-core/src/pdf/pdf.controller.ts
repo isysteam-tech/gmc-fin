@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Controller,
     Post,
     Query,
@@ -17,10 +18,19 @@ export class PdfController {
     constructor(private readonly pdfService: PdfService) { }
 
     @Post('upload')
-    @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }),)
-    async uploadPdf(@UploadedFile() file: Express.Multer.File) {
-        const text = await this.pdfService.extractText(file.buffer);
-        return { text }; // JSON response
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: memoryStorage(),
+            limits: { fileSize: 20 * 1024 * 1024 }
+        })
+    )
+    async uploadPdfWithCitations(@UploadedFile() file: Express.Multer.File) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+
+        const citations = await this.pdfService.extractWithSentenceCitations(file.buffer);
+        return { citations, totalSentences: citations.length };
     }
 
 }
